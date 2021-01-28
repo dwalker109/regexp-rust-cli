@@ -16,7 +16,7 @@ struct Input {
 #[serde(rename_all = "camelCase")]
 struct Output {
     group_names: Vec<String>,
-    indexes: Vec<Vec<usize>>,
+    indexes: Vec<Vec<isize>>,
     substitute_text: String,
 }
 
@@ -54,17 +54,19 @@ fn main() {
         })
         .collect();
 
-    // get matches
-    if is_global {
-        output.indexes = compiled
-            .find_iter(&input.test_string)
-            .map(|m| vec![m.start(), m.end()])
-            .collect();
-    } else {
-        output.indexes = match compiled.find(&input.test_string) {
-            Some(m) => vec![vec![m.start(), m.end()]],
-            None => Vec::new(),
-        }
+    // get captures
+    let captures_iter = compiled.captures_iter(&input.test_string).map(|captures| {
+        captures
+            .iter()
+            .flat_map(|capture| match capture {
+                Some(m) => vec![m.start() as isize, m.end() as isize],
+                None => vec![-1, -1],
+            })
+            .collect::<Vec<isize>>()
+    });
+    match is_global {
+        true => output.indexes = captures_iter.collect(),
+        false => output.indexes = captures_iter.take(1).collect(),
     }
 
     // get substitutions
